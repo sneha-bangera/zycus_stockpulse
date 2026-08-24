@@ -1,0 +1,1 @@
+-- Hibernate creates the schema. This file intentionally stays empty so the same project can switch to Postgres later.
