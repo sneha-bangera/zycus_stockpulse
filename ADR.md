@@ -11,18 +11,18 @@ StockPulse is a single-page React application backed by a Spring Boot REST servi
 
 ```mermaid
 flowchart LR
-	User[Merchandising user]
-	UI["React + Vite SPA<br/>Dashboard, Catalog, Suggestions, Analytics"]
-	API[Spring Boot REST API\nProductController\nSuggestionController\nStrategyController]
-	Service[SuggestionService\napplication orchestration]
-	Runtime[StrategyRuntimeService\nRULE_BASED or AI]
-	Rule[RuleBasedAdvisorStrategy]
-	AI[AiAdvisorStrategy]
-	LLM[LiteLLM gateway\nexternal, optional]
-	Events[ProductSignalEvent]
-	Listener[AgenticLoopListener\n@Async event handler]
-	Repo[Spring Data JPA repositories]
-	DB[(H2 in-memory database\nproducts + suggestions)]
+	User["Merchandising user"];
+	UI["React + Vite SPA<br/>Dashboard, Catalog, Suggestions, Analytics"];
+	API["Spring Boot REST API<br/>ProductController<br/>SuggestionController<br/>StrategyController"];
+	Service["SuggestionService<br/>application orchestration"];
+	Runtime["StrategyRuntimeService<br/>RULE_BASED or AI"];
+	Rule["RuleBasedAdvisorStrategy"];
+	AI["AiAdvisorStrategy"];
+	LLM["LiteLLM gateway<br/>external, optional"];
+	Events["ProductSignalEvent"];
+	Listener["AgenticLoopListener<br/>Async event handler"];
+	Repo["Spring Data JPA repositories"];
+	DB[("H2 in-memory database<br/>products + suggestions")];
 
 	User --> UI
 	UI -->|REST /api| API
