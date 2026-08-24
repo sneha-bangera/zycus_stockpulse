@@ -12,7 +12,7 @@ StockPulse is a single-page React application backed by a Spring Boot REST servi
 ```mermaid
 flowchart LR
 	User[Merchandising user]
-	UI[React + Vite SPA\nDashboard | Catalog | Suggestions | Analytics]
+	UI["React + Vite SPA<br/>Dashboard, Catalog, Suggestions, Analytics"]
 	API[Spring Boot REST API\nProductController\nSuggestionController\nStrategyController]
 	Service[SuggestionService\napplication orchestration]
 	Runtime[StrategyRuntimeService\nRULE_BASED or AI]
