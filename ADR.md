@@ -1,11 +1,95 @@
-# StockPulse — Architecture Decision Record
+# StockPulse 
 
-**Status:** Accepted  
-**Scope:** Hackathon MVP  
 **Frontend:** React 18 + Vite + Tailwind  
 **Backend:** Java 17 + Spring Boot + JPA + H2
 
 > The brief defines the core loop as inventory/demand signal → recommendation → human approval. It explicitly prioritizes clean domain contracts, runtime strategy switching, AI resilience, an event-driven async loop, and a visible merchandising checkpoint.
+
+## System Architecture
+
+StockPulse is a single-page React application backed by a Spring Boot REST service. In local development, the frontend runs on Vite at `http://localhost:5173` and calls the backend at `http://localhost:8080/api`. The backend is the owner of commerce rules, persistence, strategy selection, event handling, and suggestion state; the frontend is a presentation and human-approval client.
+
+```mermaid
+flowchart LR
+	User[Merchandising user]
+	UI[React + Vite SPA\nDashboard | Catalog | Suggestions | Analytics]
+	API[Spring Boot REST API\nProductController\nSuggestionController\nStrategyController]
+	Service[SuggestionService\napplication orchestration]
+	Runtime[StrategyRuntimeService\nRULE_BASED or AI]
+	Rule[RuleBasedAdvisorStrategy]
+	AI[AiAdvisorStrategy]
+	LLM[LiteLLM gateway\nexternal, optional]
+	Events[ProductSignalEvent]
+	Listener[AgenticLoopListener\n@Async event handler]
+	Repo[Spring Data JPA repositories]
+	DB[(H2 in-memory database\nproducts + suggestions)]
+
+	User --> UI
+	UI -->|REST /api| API
+	API --> Service
+	API --> Runtime
+	Service --> Runtime
+	Runtime --> Rule
+	Runtime --> AI
+	AI -->|HTTP JSON| LLM
+	Service -->|publish after stock/order change| Events
+	Events --> Listener
+	Listener --> Service
+	Service --> Repo
+	Repo --> DB
+	API -->|read pending suggestions| Repo
+```
+
+### Frontend
+
+- `frontend/src/main.jsx` mounts the React application into `#root` and imports the global stylesheet.
+- `frontend/src/App.jsx` contains the application shell, tab navigation, API client, polling refresh, product catalog, suggestion review actions, and analytics visualization.
+- Axios uses `VITE_API_URL` when provided and otherwise defaults to `http://localhost:8080/api`.
+- The UI polls products, pending pricing suggestions, pending reorder suggestions, and the current strategy every two seconds. It does not mutate commerce state locally; sale, suggestion, and approval actions call backend endpoints.
+- The four views are Dashboard, Catalog, Suggestions, and Analytics. The approval buttons are the human checkpoint: accepting a pricing suggestion changes the product price, while accepting a reorder suggestion increases stock.
+
+### Backend
+
+- `BackendApplication` starts the Spring Boot application.
+- `ProductController` exposes product reads, simulated orders, stock updates, and manual suggestion triggers under `/api/products`.
+- `SuggestionController` exposes pending suggestions and pricing/reorder approval decisions under `/api`.
+- `StrategyController` exposes runtime strategy selection under `/api/strategy`.
+- `SuggestionService` is the application boundary. It loads products, calculates category averages, publishes product signals, requests recommendations, persists suggestions, enforces pending-suggestion idempotency, and applies accepted decisions.
+- `StrategyRuntimeService` selects either `RuleBasedAdvisorStrategy` or `AiAdvisorStrategy` for each request and event.
+- `AgenticLoopListener` consumes `ProductSignalEvent` asynchronously and delegates to `SuggestionService`, so stock changes do not block on recommendation generation.
+- Spring Data repositories persist `Product`, `PricingSuggestion`, and `ReorderSuggestion` entities. H2 is configured as an in-memory database and initialized from `schema.sql` and `data.sql` on startup.
+
+### Main API Surface
+
+| Method | Endpoint | Responsibility |
+| --- | --- | --- |
+| `GET` | `/api/products` | List products, optionally filtered by status or category |
+| `POST` | `/api/products/{id}/orders` | Simulate a sale and publish any resulting signals |
+| `PATCH` | `/api/products/{id}/stock` | Update stock and publish any resulting signals |
+| `POST` | `/api/products/{id}/suggest-pricing` | Manually request a pricing suggestion |
+| `POST` | `/api/products/{id}/suggest-reorder` | Manually request a reorder suggestion |
+| `GET` | `/api/pricing-suggestions` | List pending pricing suggestions |
+| `GET` | `/api/reorder-suggestions` | List pending reorder suggestions |
+| `PATCH` | `/api/pricing-suggestions/{id}` | Accept or reject a pricing suggestion |
+| `PATCH` | `/api/reorder-suggestions/{id}` | Accept or reject a reorder suggestion |
+| `GET` | `/api/strategy` | Read the active strategy |
+| `PUT` | `/api/strategy` | Switch between `AI` and `RULE_BASED` at runtime |
+
+### Runtime Flows
+
+**Read and refresh:** The frontend requests products, suggestions, and strategy state in parallel. The API reads from repositories and returns JSON entities to the React state.
+
+**Sale or stock update:** The frontend calls the product endpoint. `SuggestionService` updates stock and demand velocity, saves the product, then publishes `INVENTORY_LOW` when stock is below the reorder threshold or `DEMAND_SPIKE` when demand exceeds three times the category average.
+
+**Recommendation:** `AgenticLoopListener` handles the signal asynchronously. It calls the active strategy, persists both pricing and reorder suggestions, and avoids duplicate pending suggestions for the same product, trigger, and type.
+
+**AI failure:** `AiAdvisorStrategy` validates the gateway response and recommendation values. Timeout, transport, parsing, or validation failures return the deterministic `RuleBasedAdvisorStrategy` result so the workflow still reaches the human checkpoint.
+
+**Approval:** The frontend sends `ACCEPTED` or `REJECTED`. Rejection only changes suggestion status. Acceptance applies the price or stock change through `SuggestionService`; no suggestion changes commerce state before approval.
+
+### Deployment and Boundaries
+
+The MVP is a two-process local deployment: Vite serves the frontend and Spring Boot serves the API. CORS is enabled on the REST controllers for the development frontend. H2 is intentionally process-local and non-durable, and Spring's in-memory async executor is used for events. The LiteLLM gateway is an external dependency configured through backend properties; its API key and cookie should be supplied through environment variables rather than committed configuration. Durable messaging, a production database, authentication, retries, SSE, and multi-node coordination remain outside the MVP boundary.
 
 ## ADR-1 — Commerce Logic Placement & Service Boundary
 
