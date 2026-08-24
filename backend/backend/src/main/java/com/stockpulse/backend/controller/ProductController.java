@@ -1,19 +1,29 @@
-// package com.stockpulse.backend.controller;
-
-// public class ProductController {
-    
-// }
 package com.stockpulse.backend.controller;
-import com.stockpulse.backend.entity.*;
-import com.stockpulse.backend.entity.Enums.*;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.stockpulse.backend.entity.Enums.Category;
+import com.stockpulse.backend.entity.Enums.ProductStatus;
+import com.stockpulse.backend.entity.Enums.TriggerReason;
+import com.stockpulse.backend.entity.Product;
 import com.stockpulse.backend.repository.ProductRepository;
 import com.stockpulse.backend.service.SuggestionService;
-import jakarta.validation.constraints.Min;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.util.*;
 
-@RestController @RequestMapping("/api/products") @CrossOrigin(origins="*")
+import jakarta.validation.constraints.Min;
+
+@RestController 
+@RequestMapping("/api/products") 
+@CrossOrigin(origins="*")
 public class ProductController {
     private final ProductRepository products; private final SuggestionService suggestions;
     public ProductController(ProductRepository products,SuggestionService suggestions){this.products=products;this.suggestions=suggestions;}
